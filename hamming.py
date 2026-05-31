@@ -1,7 +1,6 @@
 import numpy as np
 
-# (7,4) Hamming Kodu için Sistematik Üreteç Matrisi G = [I_4 | P]
-
+# (7,4) Hamming Kodu icin Uretec Matrisi G = [I_4 | P]
 G = np.array([
     [1, 0, 0, 0, 1, 0, 1],
     [0, 1, 0, 0, 0, 1, 1],
@@ -9,30 +8,41 @@ G = np.array([
     [0, 0, 0, 1, 1, 1, 0]
 ], dtype=int)
 
-# Kodun iç boyut tanımlamaları (n=7, k=4)
+# Parity-Check Matrisi H
+H = np.array([
+    [1, 0, 1, 1, 1, 0, 0],
+    [0, 1, 1, 1, 0, 1, 0],
+    [1, 1, 1, 0, 0, 0, 1]
+], dtype=int)
+
 N_HAMMING = 7
 K_HAMMING = 4
 
 def hamming_encode(message_bits):
-    """
-    4 bitlik bir u mesaj bloğunu alır ve c = u * G (mod 2) 
-    formülüyle 7 bitlik Hamming kod sözcüğüne dönüştürür.
-    """
-    # Giriş verisini bir NumPy dizisine dönüştür
     u = np.array(message_bits, dtype=int)
-    
-    # Boyut kontrolü 
     if u.shape[0] != K_HAMMING:
-        raise ValueError(f"Hata: Mesaj bloğu tam olarak {K_HAMMING} bit olmalıdır!")
-        
-    # Standart matris çarpımını gerçekleştir (u * G)
+        raise ValueError(f"Hata: Mesaj blogu tam olarak {K_HAMMING} bit olmalidir!")
     raw_multiplication = np.dot(u, G)
-    
-    # GF(2) aritmetiği için mod 2 işlemini uygula
     codeword = raw_multiplication % 2
-    
     return codeword
 
 def hamming_decode(received_bits):
-        # Daha sonra içi doldurulacaktır
-    pass
+    """
+    Alinan 7 bitlik r blogunun H^T ile carpimini alarak
+    3 bitlik sendrom vektorunu hesaplar.
+    """
+    r = np.array(received_bits, dtype=int)
+    
+    if r.shape[0] != N_HAMMING:
+        raise ValueError(f"Hata: Alinan blok tam olarak {N_HAMMING} bit olmalidir!")
+        
+    # H matrisinin transpozunu al (H^T)
+    H_transpose = H.T
+    
+    # Sendrom hesabi: S = r * H^T
+    raw_syndrome = np.dot(r, H_transpose)
+    
+    # GF(2) aritmetigi icin mod 2 islemi
+    syndrome = raw_syndrome % 2
+    
+    return syndrome
