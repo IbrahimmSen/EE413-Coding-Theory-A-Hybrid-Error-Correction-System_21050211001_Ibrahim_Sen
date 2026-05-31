@@ -45,4 +45,19 @@ def hamming_decode(received_bits):
     # GF(2) aritmetigi icin mod 2 islemi
     syndrome = raw_syndrome % 2
     
-    return syndrome
+    # Eger sendrom tamamen 0 ise hata yoktur
+    if np.all(syndrome == 0):
+        return r[0:K_HAMMING]
+        
+    # Sendrom sifirdan farkliysa hatali biti bul
+    error_index = -1
+    for i in range(N_HAMMING):
+        if np.array_equal(H[:, i], syndrome):
+            error_index = i
+            break
+            
+    # Hatali bit bulunduysa ters cevir
+    if error_index != -1:
+        r[error_index] = 1 - r[error_index]
+        
+    return r[0:K_HAMMING]
