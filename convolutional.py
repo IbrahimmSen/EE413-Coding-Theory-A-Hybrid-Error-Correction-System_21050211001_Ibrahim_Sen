@@ -8,6 +8,10 @@ def convolutional_encode(message_bits):
     """
     input_bits = list(message_bits)
     
+    # Encoder'i sifir durumuna dondurmek icin K-1 adet tail bit ekleme
+    tail_bits = [0, 0]
+    padded_bits = input_bits + tail_bits
+    
     # Bellek elemanlarinin ilk durum tanimi
     m1 = 0
     m2 = 0
@@ -15,7 +19,7 @@ def convolutional_encode(message_bits):
     encoded_sequence = []
     
     # Durum gecis mantiginin kurulmasi
-    for bit in input_bits:
+    for bit in padded_bits:
         m0 = bit
         
         # g1(D) = D^2 + 1
