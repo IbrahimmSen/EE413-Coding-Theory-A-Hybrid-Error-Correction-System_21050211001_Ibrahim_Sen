@@ -84,3 +84,17 @@ def viterbi_decode(received_bits):
                     
         path_metrics = next_path_metrics
         history.append(step_history)
+        
+    # Geriye dogru izleme adimi (Traceback)
+    decoded_bits = []
+    current_state = 0
+    
+    for step in reversed(range(num_steps)):
+        prev_state, input_bit = history[step][current_state]
+        decoded_bits.append(input_bit)
+        current_state = prev_state
+        
+    decoded_bits.reverse()
+    
+    # Tail bitlerini temizleyerek orijinal mesaji dondur
+    return np.array(decoded_bits[:-2], dtype=int)
