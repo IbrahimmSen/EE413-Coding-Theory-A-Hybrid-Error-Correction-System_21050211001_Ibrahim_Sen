@@ -61,6 +61,8 @@ def viterbi_decode(received_bits):
     # Tum zaman adimlari boyunca branch metric hesabı
     for step in range(num_steps):
         r1, r2 = r[2*step], r[2*step+1]
+        next_path_metrics = {0: float('inf'), 1: float('inf'), 2: float('inf'), 3: float('inf')}
+        step_history = {}
         
         for current_state, transitions in trellis_transitions.items():
             if path_metrics[current_state] == float('inf'):
@@ -71,3 +73,14 @@ def viterbi_decode(received_bits):
                 
                 # Branch metric hesabi
                 branch_metric = (r1 ^ c1) + (r2 ^ c2)
+                
+                # Path metric guncellemesi (Add-Compare-Select)
+                new_path_metric = path_metrics[current_state] + branch_metric
+                
+                # En kucuk maliyetli yolu secme
+                if new_path_metric < next_path_metrics[next_state]:
+                    next_path_metrics[next_state] = new_path_metric
+                    step_history[next_state] = (current_state, input_bit)
+                    
+        path_metrics = next_path_metrics
+        history.append(step_history)
