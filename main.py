@@ -51,6 +51,24 @@ def main():
     
     print(f"Giris Blogu (u): {test_bits}")
     print(f"Kod Sozcugu (c): {list(codeword)}")
+    
+    # Orijinal mesaj metnini bit dizisine cevirme
+    message_bytes = personal_message.encode('utf-8')
+    source_bits = []
+    for b in message_bytes:
+        bits_str = bin(b)[2:].zfill(8)
+        source_bits.extend([int(x) for x in bits_str])
+        
+    # Ana simülasyon dongusunun kurulmasi
+    print("\n--- Ana Simulasyon Dongusu Baslatiliyor ---")
+    for s in seeds:
+        print(f"\n>> Seed {s} icin sonuclar test ediliyor:")
+        for ber in channel_bers:
+            # Her kombinasyon icin ardisik hattin calistirilmasi
+            fully_encoded, channel_output, final_decoded_bits = run_concatenated_pipeline(source_bits, ber, seed=s)
+            
+            # Dongu dogrulama ciktisi
+            print(f"   BER: {ber:<5} -> Calisma tamamlandi.")
 
 if __name__ == "__main__":
     main()
