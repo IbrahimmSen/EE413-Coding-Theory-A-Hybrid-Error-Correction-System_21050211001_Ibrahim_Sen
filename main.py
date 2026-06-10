@@ -4,28 +4,43 @@ from hamming import hamming_encode, hamming_decode
 from convolutional import convolutional_encode, viterbi_decode
 from channel import binary_symmetric_channel, calculate_bit_errors
 
-def run_concatenated_pipeline(message_bits, ber, seed=None):
-    """
-    Hamming ve Konvolusyonel kodlari ardisik (serial concatenation) baglar.
-    Veriyi sirasiyla kodlar, kanaldan gecirir ve tersi sirayla cozer.
-    """
-    # Hamming kodlama adimi (Blok kodlama)
+def run_hamming_only_pipeline(message_bits, ber, seed=None):
+    """Sadece Hamming (7,4) kodlamasini kanaldan gecirir ve cozer."""
     hamming_encoded = []
     for i in range(0, len(message_bits), 4):
         block = message_bits[i:i+4]
         encoded_block = hamming_encode(block)
         hamming_encoded.extend(encoded_block)
         
-    # Konvolusyonel kodlama adimi (Surekli kodlama)
-    fully_encoded = convolutional_encode(hamming_encoded)
+    channel_output = binary_symmetric_channel(hamming_encoded, ber, seed=seed)
     
-    # Gurultulu kanal (BSC) simülasyonu
+    decoded_bits = []
+    for i in range(0, len(channel_output), 7):
+        block = channel_output[i:i+7]
+        decoded_block = hamming_decode(block)
+        decoded_bits.extend(decoded_block)
+        
+    return hamming_encoded, channel_output, decoded_bits
+
+def run_convolutional_only_pipeline(message_bits, ber, seed=None):
+    """Sadece Konvolusyonel kodlamayi kanaldan gecirir ve cozer."""
+    fully_encoded = convolutional_encode(message_bits)
     channel_output = binary_symmetric_channel(fully_encoded, ber, seed=seed)
-    
-    # Viterbi kod cozme adimi (Ic cozucu)
+    decoded_bits = viterbi_decode(channel_output)
+    return fully_encoded, channel_output, decoded_bits
+
+def run_concatenated_pipeline(message_bits, ber, seed=None):
+    """Hamming ve Konvolusyonel kodlari ardisik (serial concatenation) baglar."""
+    hamming_encoded = []
+    for i in range(0, len(message_bits), 4):
+        block = message_bits[i:i+4]
+        encoded_block = hamming_encode(block)
+        hamming_encoded.extend(encoded_block)
+        
+    fully_encoded = convolutional_encode(hamming_encoded)
+    channel_output = binary_symmetric_channel(fully_encoded, ber, seed=seed)
     viterbi_decoded = viterbi_decode(channel_output)
     
-    # Hamming kod cozme adimi (Dis cozucu)
     final_decoded_bits = []
     for i in range(0, len(viterbi_decoded), 7):
         block = viterbi_decoded[i:i+7]
@@ -35,7 +50,6 @@ def run_concatenated_pipeline(message_bits, ber, seed=None):
     return fully_encoded, channel_output, final_decoded_bits
 
 def main():
-    # Proje parametreleri ve ana degiskenler
     personal_message = "ECC2026-S02B"
     seeds = [4129, 9533, 17021]
     channel_bers = [0.001, 0.01, 0.05, 0.10, 0.15]
@@ -45,59 +59,54 @@ def main():
     print(f"Seeds: {seeds}")
     print(f"BER Listesi: {channel_bers}\n")
     
-    # Hamming kodlayici fonksiyon testi
-    print("--- Hamming Kodlayici Testi ---")
-    test_bits = [1, 0, 1, 1]
-    codeword = hamming_encode(test_bits)
-    
-    print(f"Giris Blogu (u): {test_bits}")
-    print(f"Kod Sozcugu (c): {list(codeword)}")
-    
-    # Orijinal mesaj metnini bit dizisine cevirme
     message_bytes = personal_message.encode('utf-8')
     source_bits = []
     for b in message_bytes:
         bits_str = bin(b)[2:].zfill(8)
         source_bits.extend([int(x) for x in bits_str])
         
-    # Veri toplama matrislerinin ilklenmesi
-    channel_error_matrix = np.zeros((len(seeds), len(channel_bers)))
-    system_error_matrix = np.zeros((len(seeds), len(channel_bers)))
+    # Her uc sema icin ayri hata matrisleri tanimliyoruz
+    hamming_ber_matrix = np.zeros((len(seeds), len(channel_bers)))
+    conv_ber_matrix = np.zeros((len(seeds), len(channel_bers)))
+    concat_ber_matrix = np.zeros((len(seeds), len(channel_bers)))
     
-    # Ana simülasyon dongusunun kurulmasi
     print("\n--- Ana Simulasyon Dongusu Baslatiliyor ---")
     for s_idx, s in enumerate(seeds):
         print(f"\n>> Seed {s} icin veriler toplaniyor:")
         for b_idx, ber in enumerate(channel_bers):
-            # Her kombinasyon icin ardisik hattin calistirilmasi
-            fully_encoded, channel_output, final_decoded_bits = run_concatenated_pipeline(source_bits, ber, seed=s)
             
-            # Pre-decoding (Kanal uzerindeki) hata hesabi
-            pre_errors = calculate_bit_errors(fully_encoded, channel_output)
-            channel_error_matrix[s_idx, b_idx] = pre_errors / len(fully_encoded)
+            # 1. Şema: Hamming Only
+            _, _, dec_hamming = run_hamming_only_pipeline(source_bits, ber, seed=s)
+            hamming_ber_matrix[s_idx, b_idx] = calculate_bit_errors(source_bits, dec_hamming) / len(source_bits)
             
-            # Post-decoding (Sistem cikisindaki) hata hesabi
-            post_errors = calculate_bit_errors(source_bits, final_decoded_bits)
-            system_error_matrix[s_idx, b_idx] = post_errors / len(source_bits)
+            # 2. Şema: Convolutional Only
+            _, _, dec_conv = run_convolutional_only_pipeline(source_bits, ber, seed=s)
+            conv_ber_matrix[s_idx, b_idx] = calculate_bit_errors(source_bits, dec_conv) / len(source_bits)
             
-            # Hesaplama ciktilarinin ekrana basilmasi
-            print(f"   BER: {ber:<5} | Kanal Hatasi: {channel_error_matrix[s_idx, b_idx]:.5f} | Sistem Hatasi: {system_error_matrix[s_idx, b_idx]:.5f}")
+            # 3. Şema: Concatenated Pipeline
+            _, _, dec_concat = run_concatenated_pipeline(source_bits, ber, seed=s)
+            concat_ber_matrix[s_idx, b_idx] = calculate_bit_errors(source_bits, dec_concat) / len(source_bits)
             
-    # Seed verilerinin ortalamasini alarak genel performansi cikarma
-    avg_channel_ber = np.mean(channel_error_matrix, axis=0)
-    avg_system_ber = np.mean(system_error_matrix, axis=0)
+            print(f"   BER: {ber:<5} | Hamming: {hamming_ber_matrix[s_idx, b_idx]:.4f} | Conv: {conv_ber_matrix[s_idx, b_idx]:.4f} | Concat: {concat_ber_matrix[s_idx, b_idx]:.4f}")
+            
+    # Ortalama performans ciktilari
+    avg_hamming = np.mean(hamming_ber_matrix, axis=0)
+    avg_conv = np.mean(conv_ber_matrix, axis=0)
+    avg_concat = np.mean(concat_ber_matrix, axis=0)
     
-    # Grafik cizim adimi
-    plt.figure(figsize=(9, 6))
-    plt.loglog(channel_bers, avg_channel_ber, 'ro--', label='Pre-Decoding (Channel Noise)')
-    plt.loglog(channel_bers, avg_system_ber, 'bs-', label='Post-Decoding (Concatenated System Output)')
+    # Profesyonel Grafik Çizimi (Hocanın tam istedigi gibi)
+    plt.figure(figsize=(10, 7))
+    plt.loglog(channel_bers, channel_bers, 'k--', alpha=0.5, label='Uncoded Baseline (Channel BER)')
+    plt.loglog(channel_bers, avg_hamming, 'g^--', label='Hamming (7,4) Only')
+    plt.loglog(channel_bers, avg_conv, 'ro--', label='Convolutional Only (Viterbi)')
+    plt.loglog(channel_bers, avg_concat, 'bs-', linewidth=2, label='Serially Concatenated System')
+    
     plt.grid(True, which="both", ls="--", alpha=0.7)
     plt.xlabel('Theoretical Channel BER')
-    plt.ylabel('Measured Error Rate (BER)')
-    plt.title('Error Correction Performance: Channel BER vs Post-Decoding BER')
+    plt.ylabel('Measured Post-Decoding BER')
+    plt.title('EE413 Project: Error Correction Performance Comparison')
     plt.legend()
     
-    # Grafigi kaydetme ve gosterme
     plt.savefig('ber_performance_plot.png', dpi=300)
     plt.show()
 
