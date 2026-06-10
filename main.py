@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from hamming import hamming_encode, hamming_decode
 from convolutional import convolutional_encode, viterbi_decode
 from channel import binary_symmetric_channel, calculate_bit_errors
@@ -81,6 +82,24 @@ def main():
             
             # Hesaplama ciktilarinin ekrana basilmasi
             print(f"   BER: {ber:<5} | Kanal Hatasi: {channel_error_matrix[s_idx, b_idx]:.5f} | Sistem Hatasi: {system_error_matrix[s_idx, b_idx]:.5f}")
+            
+    # Seed verilerinin ortalamasini alarak genel performansi cikarma
+    avg_channel_ber = np.mean(channel_error_matrix, axis=0)
+    avg_system_ber = np.mean(system_error_matrix, axis=0)
+    
+    # Grafik cizim adimi
+    plt.figure(figsize=(9, 6))
+    plt.loglog(channel_bers, avg_channel_ber, 'ro--', label='Pre-Decoding (Channel Noise)')
+    plt.loglog(channel_bers, avg_system_ber, 'bs-', label='Post-Decoding (Concatenated System Output)')
+    plt.grid(True, which="both", ls="--", alpha=0.7)
+    plt.xlabel('Theoretical Channel BER')
+    plt.ylabel('Measured Error Rate (BER)')
+    plt.title('Error Correction Performance: Channel BER vs Post-Decoding BER')
+    plt.legend()
+    
+    # Grafigi kaydetme ve gosterme
+    plt.savefig('ber_performance_plot.png', dpi=300)
+    plt.show()
 
 if __name__ == "__main__":
     main()
