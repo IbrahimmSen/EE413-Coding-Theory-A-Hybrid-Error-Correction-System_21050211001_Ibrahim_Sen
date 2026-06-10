@@ -1,6 +1,6 @@
 import numpy as np
 
-def convolutional_encode(message_bits):
+def convolutional_encode(message_bits, constraint_length=3, polynomials=(5, 7)):
     """
     Giris bit dizisini K=3, Rate=1/2 yapisinda konvolusyonel olarak kodlar.
     g1(D) = D^2 + 1 ve g2(D) = D^2 + D + 1 polinomlarini kullanir.
@@ -9,7 +9,7 @@ def convolutional_encode(message_bits):
     input_bits = list(message_bits)
     
     # Encoder'i sifir durumuna dondurmek icin K-1 adet tail bit ekleme
-    tail_bits = [0, 0]
+    tail_bits = [0] * (constraint_length - 1)
     padded_bits = input_bits + tail_bits
     
     # Bellek elemanlarinin ilk durum tanimi
@@ -39,7 +39,7 @@ def convolutional_encode(message_bits):
     return np.array(encoded_sequence, dtype=int)
 
 
-def viterbi_decode(received_bits):
+def viterbi_decode(received_bits, constraint_length=3):
     """
     Alinan gurultulu bit dizisini Viterbi algoritmasi kullanarak cozer.
     Kafes yapisi uzerinde en kucuk Hamming mesafesine sahip yolu arar.
@@ -97,4 +97,4 @@ def viterbi_decode(received_bits):
     decoded_bits.reverse()
     
     # Tail bitlerini temizleyerek orijinal mesaji dondur
-    return np.array(decoded_bits[:-2], dtype=int)
+    return np.array(decoded_bits[:-(constraint_length - 1)], dtype=int)
