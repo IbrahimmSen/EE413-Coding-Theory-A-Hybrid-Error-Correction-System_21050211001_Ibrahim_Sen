@@ -59,16 +59,28 @@ def main():
         bits_str = bin(b)[2:].zfill(8)
         source_bits.extend([int(x) for x in bits_str])
         
+    # Veri toplama matrislerinin ilklenmesi
+    channel_error_matrix = np.zeros((len(seeds), len(channel_bers)))
+    system_error_matrix = np.zeros((len(seeds), len(channel_bers)))
+    
     # Ana simülasyon dongusunun kurulmasi
     print("\n--- Ana Simulasyon Dongusu Baslatiliyor ---")
-    for s in seeds:
-        print(f"\n>> Seed {s} icin sonuclar test ediliyor:")
-        for ber in channel_bers:
+    for s_idx, s in enumerate(seeds):
+        print(f"\n>> Seed {s} icin veriler toplaniyor:")
+        for b_idx, ber in enumerate(channel_bers):
             # Her kombinasyon icin ardisik hattin calistirilmasi
             fully_encoded, channel_output, final_decoded_bits = run_concatenated_pipeline(source_bits, ber, seed=s)
             
-            # Dongu dogrulama ciktisi
-            print(f"   BER: {ber:<5} -> Calisma tamamlandi.")
+            # Pre-decoding (Kanal uzerindeki) hata hesabi
+            pre_errors = calculate_bit_errors(fully_encoded, channel_output)
+            channel_error_matrix[s_idx, b_idx] = pre_errors / len(fully_encoded)
+            
+            # Post-decoding (Sistem cikisindaki) hata hesabi
+            post_errors = calculate_bit_errors(source_bits, final_decoded_bits)
+            system_error_matrix[s_idx, b_idx] = post_errors / len(source_bits)
+            
+            # Hesaplama ciktilarinin ekrana basilmasi
+            print(f"   BER: {ber:<5} | Kanal Hatasi: {channel_error_matrix[s_idx, b_idx]:.5f} | Sistem Hatasi: {system_error_matrix[s_idx, b_idx]:.5f}")
 
 if __name__ == "__main__":
     main()
